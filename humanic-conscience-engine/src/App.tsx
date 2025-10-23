@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Agent } from './interfaces/Agent';
 import { AgentManager } from './core/AgentManager';
 import { AudioManager } from './core/AudioManager';
+import { MemoryManager } from './core/MemoryManager';
 import AgentCreator from './components/AgentCreator';
 import PersonalitySliders from './components/PersonalitySliders';
 import DominanceInput from './components/DominanceInput';
@@ -11,20 +12,45 @@ import SpeakerIndicator from './components/SpeakerIndicator';
 function App() {
   const agentManager = useMemo(() => new AgentManager(), []);
   const audioManager = useMemo(() => new AudioManager(), []);
+  const memoryManager = useMemo(() => new MemoryManager(), []);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [conversation, setConversation] = useState<any[]>([]);
+  const [message, setMessage] = useState('');
 
-  const handleAddAgent = (name: string, role: string) => {
+  useEffect(() => {
+    const loadData = async () => {
+      const savedAgents = await memoryManager.getAgents();
+      savedAgents.forEach(agent => agentManager.addAgent(agent));
+      setAgents(savedAgents);
+
+      const savedConversation = await memoryManager.getConversation();
+      setConversation(savedConversation);
+    };
+    loadData();
+  }, [memoryManager, agentManager]);
+
+  const handleAddAgent = async (name: string, role: string) => {
     const newAgent: Agent = {
       name,
       role,
       dominance: 50, // Default dominance
     };
     agentManager.addAgent(newAgent);
+    await memoryManager.saveAgent(newAgent);
     setAgents([...agentManager.getAllAgents()]);
   };
 
   const handleSpeak = (text: string) => {
     audioManager.speak(text);
+  };
+
+  const handleSendMessage = async () => {
+    if (message.trim()) {
+      await memoryManager.saveMessage('User', message);
+      const savedConversation = await memoryManager.getConversation();
+      setConversation(savedConversation);
+      setMessage('');
+    }
   };
 
   return (
@@ -62,7 +88,18 @@ function App() {
           {/* Right Column: Conversation View */}
           <div className="lg:col-span-2 space-y-6">
             <h2 className="text-2xl font-semibold text-gray-800">Conversation View</h2>
-            <LiveTranscript />
+            <LiveTranscript conversation={conversation} />
+            <div className="flex">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="flex-grow rounded-l-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+              />
+              <button onClick={handleSendMessage} className="bg-green-500 text-white py-2 px-4 rounded-r-md hover:bg-green-600">
+                Send
+              </button>
+            </div>
             <SpeakerIndicator />
           </div>
         </div>
