@@ -3,7 +3,7 @@ import { Agent } from './interfaces/Agent';
 import { AgentManager } from './core/AgentManager';
 import { AudioManager } from './core/AudioManager';
 import { MemoryManager } from './core/MemoryManager';
-import { PersonalitySimulator } from './core/PersonalitySimulator';
+import { AIManager } from './core/AIManager';
 import AgentCreator from './components/AgentCreator';
 import PersonalitySliders from './components/PersonalitySliders';
 import DominanceInput from './components/DominanceInput';
@@ -14,11 +14,12 @@ function App() {
   const agentManager = useMemo(() => new AgentManager(), []);
   const audioManager = useMemo(() => new AudioManager(), []);
   const memoryManager = useMemo(() => new MemoryManager(), []);
-  const personalitySimulator = useMemo(() => new PersonalitySimulator(), []);
+  const aiManager = useMemo(() => new AIManager(), []);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [conversation, setConversation] = useState<any[]>([]);
   const [message, setMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -62,14 +63,15 @@ function App() {
   };
 
   const handleSendMessage = async () => {
-    if (message.trim()) {
+    if (message.trim() && !isLoading) {
+      setIsLoading(true);
       await memoryManager.saveMessage('User', message);
       let updatedConversation = await memoryManager.getConversation();
 
       // Agent response
       if (agents.length > 0) {
         const respondingAgent = agents[Math.floor(Math.random() * agents.length)];
-        const response = personalitySimulator.generateResponse(respondingAgent, message);
+        const response = await aiManager.generateResponse(respondingAgent, updatedConversation);
         await memoryManager.saveMessage(respondingAgent.name, response);
         updatedConversation = await memoryManager.getConversation();
         handleSpeak(response);
@@ -77,6 +79,7 @@ function App() {
 
       setConversation(updatedConversation);
       setMessage('');
+      setIsLoading(false);
     }
   };
 
@@ -90,6 +93,8 @@ function App() {
         },
       };
       setSelectedAgent(updatedAgent);
+      // This is a bit of a hack, but since we're using the agent name as a key,
+      // adding the agent again will just overwrite the old one.
       agentManager.addAgent(updatedAgent);
       await memoryManager.saveAgent(updatedAgent);
       setAgents([...agentManager.getAllAgents()]);
@@ -139,9 +144,10 @@ function App() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 className="flex-grow rounded-l-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                disabled={isLoading}
               />
-              <button onClick={handleSendMessage} className="bg-green-500 text-white py-2 px-4 rounded-r-md hover:bg-green-600">
-                Send
+              <button onClick={handleSendMessage} className="bg-green-500 text-white py-2 px-4 rounded-r-md hover:bg-green-600" disabled={isLoading}>
+                {isLoading ? 'Thinking...' : 'Send'}
               </button>
             </div>
             <SpeakerIndicator />

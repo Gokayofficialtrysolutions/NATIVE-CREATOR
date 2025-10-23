@@ -33,6 +33,7 @@
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "idb": "^8.0.3",
