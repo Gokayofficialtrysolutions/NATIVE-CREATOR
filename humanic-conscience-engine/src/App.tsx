@@ -3,6 +3,7 @@ import { Agent } from './interfaces/Agent';
 import { AgentManager } from './core/AgentManager';
 import { AudioManager } from './core/AudioManager';
 import { MemoryManager } from './core/MemoryManager';
+import { PersonalitySimulator } from './core/PersonalitySimulator';
 import AgentCreator from './components/AgentCreator';
 import PersonalitySliders from './components/PersonalitySliders';
 import DominanceInput from './components/DominanceInput';
@@ -13,7 +14,9 @@ function App() {
   const agentManager = useMemo(() => new AgentManager(), []);
   const audioManager = useMemo(() => new AudioManager(), []);
   const memoryManager = useMemo(() => new MemoryManager(), []);
+  const personalitySimulator = useMemo(() => new PersonalitySimulator(), []);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [conversation, setConversation] = useState<any[]>([]);
   const [message, setMessage] = useState('');
 
@@ -22,6 +25,9 @@ function App() {
       const savedAgents = await memoryManager.getAgents();
       savedAgents.forEach(agent => agentManager.addAgent(agent));
       setAgents(savedAgents);
+      if (savedAgents.length > 0) {
+        setSelectedAgent(savedAgents[0]);
+      }
 
       const savedConversation = await memoryManager.getConversation();
       setConversation(savedConversation);
@@ -33,11 +39,22 @@ function App() {
     const newAgent: Agent = {
       name,
       role,
-      dominance: 50, // Default dominance
+      dominance: 50,
+      personality: {
+        rudeness: 50,
+        slang: 50,
+        politeness: 50,
+        curiosity: 50,
+        rationality: 50,
+        empathy: 50,
+      },
     };
     agentManager.addAgent(newAgent);
     await memoryManager.saveAgent(newAgent);
     setAgents([...agentManager.getAllAgents()]);
+    if (!selectedAgent) {
+      setSelectedAgent(newAgent);
+    }
   };
 
   const handleSpeak = (text: string) => {
@@ -47,9 +64,35 @@ function App() {
   const handleSendMessage = async () => {
     if (message.trim()) {
       await memoryManager.saveMessage('User', message);
-      const savedConversation = await memoryManager.getConversation();
-      setConversation(savedConversation);
+      let updatedConversation = await memoryManager.getConversation();
+
+      // Agent response
+      if (agents.length > 0) {
+        const respondingAgent = agents[Math.floor(Math.random() * agents.length)];
+        const response = personalitySimulator.generateResponse(respondingAgent, message);
+        await memoryManager.saveMessage(respondingAgent.name, response);
+        updatedConversation = await memoryManager.getConversation();
+        handleSpeak(response);
+      }
+
+      setConversation(updatedConversation);
       setMessage('');
+    }
+  };
+
+  const handlePersonalityChange = async (trait: keyof Agent['personality'], value: number) => {
+    if (selectedAgent) {
+      const updatedAgent = {
+        ...selectedAgent,
+        personality: {
+          ...selectedAgent.personality,
+          [trait]: value,
+        },
+      };
+      setSelectedAgent(updatedAgent);
+      agentManager.addAgent(updatedAgent);
+      await memoryManager.saveAgent(updatedAgent);
+      setAgents([...agentManager.getAllAgents()]);
     }
   };
 
@@ -68,21 +111,22 @@ function App() {
           <div className="lg:col-span-1 space-y-6">
             <h2 className="text-2xl font-semibold text-gray-800">User Configurator</h2>
             <AgentCreator onAddAgent={handleAddAgent} />
-            <PersonalitySliders />
-            <DominanceInput />
             <div>
               <h3 className="text-lg font-bold mb-2">Agents</h3>
               <ul className="p-4 border rounded-lg">
-                {agents.map((agent, index) => (
-                  <li key={index} className="text-gray-700 flex justify-between items-center">
+                {agents.map((agent) => (
+                  <li
+                    key={agent.name}
+                    className={`cursor-pointer p-2 rounded-md ${selectedAgent?.name === agent.name ? 'bg-indigo-100' : ''}`}
+                    onClick={() => setSelectedAgent(agent)}
+                  >
                     {agent.name} ({agent.role})
-                    <button onClick={() => handleSpeak(`Hello, I am ${agent.name}`)} className="bg-blue-500 text-white py-1 px-2 rounded-md hover:bg-blue-600">
-                      Speak
-                    </button>
                   </li>
                 ))}
               </ul>
             </div>
+            <PersonalitySliders selectedAgent={selectedAgent} onPersonalityChange={handlePersonalityChange} />
+            <DominanceInput />
           </div>
 
           {/* Right Column: Conversation View */}
