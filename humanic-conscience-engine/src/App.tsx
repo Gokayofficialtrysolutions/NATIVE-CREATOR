@@ -77,16 +77,29 @@ function App() {
       await memoryManager.saveMessage('User', message);
       let updatedConversation = await memoryManager.getConversation();
 
-      // Agent response
       if (agents.length > 0) {
-        const respondingAgent = turnController.getNextSpeaker();
-        const response = await aiManager.generateResponse(respondingAgent, updatedConversation);
-        await memoryManager.saveMessage(respondingAgent.name, response);
+        // Primary speaker's turn
+        const primarySpeaker = turnController.getPrimarySpeaker();
+        const primaryResponse = await aiManager.generateResponse(primarySpeaker, updatedConversation);
+        await memoryManager.saveMessage(primarySpeaker.name, primaryResponse);
         updatedConversation = await memoryManager.getConversation();
-        handleSpeak(response);
+        handleSpeak(primaryResponse);
+        setConversation(updatedConversation);
+
+        // Check for interruptions
+        const interrupter = turnController.checkForInterruptions(primarySpeaker);
+        if (interrupter) {
+          // A brief delay to simulate a natural interruption
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          const interruptionResponse = await aiManager.generateResponse(interrupter, updatedConversation);
+          await memoryManager.saveMessage(interrupter.name, `(Interrupts) ${interruptionResponse}`);
+          updatedConversation = await memoryManager.getConversation();
+          handleSpeak(interruptionResponse);
+          setConversation(updatedConversation);
+        }
       }
 
-      setConversation(updatedConversation);
       setMessage('');
       setIsLoading(false);
     }
@@ -102,8 +115,6 @@ function App() {
         },
       };
       setSelectedAgent(updatedAgent);
-      // This is a bit of a hack, but since we're using the agent name as a key,
-      // adding the agent again will just overwrite the old one.
       agentManager.addAgent(updatedAgent);
       await memoryManager.saveAgent(updatedAgent);
       setAgents([...agentManager.getAllAgents()]);
@@ -131,7 +142,6 @@ function App() {
       </header>
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: User Configurator */}
           <div className="lg:col-span-1 space-y-6">
             <h2 className="text-2xl font-semibold text-gray-800">User Configurator</h2>
             <AgentCreator onAddAgent={handleAddAgent} />
@@ -155,7 +165,6 @@ function App() {
             <AccentSelector selectedAccent={selectedAccent} onAccentChange={setSelectedAccent} />
           </div>
 
-          {/* Right Column: Conversation View */}
           <div className="lg:col-span-2 space-y-6">
             <h2 className="text-2xl font-semibold text-gray-800">Conversation View</h2>
             <LiveTranscript conversation={conversation} />

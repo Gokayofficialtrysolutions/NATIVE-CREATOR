@@ -8,9 +8,9 @@ describe('TurnController', () => {
     const agent3: Agent = { name: 'Agent 3', dominance: 0, role: 'Tester', personality: {} as any };
     const turnController = new TurnController([agent1, agent2, agent3]);
 
-    expect(turnController.getNextSpeaker()).toEqual(agent2);
-    expect(turnController.getNextSpeaker()).toEqual(agent1);
-    expect(turnController.getNextSpeaker()).toEqual(agent3);
-    expect(turnController.getNextSpeaker()).toEqual(agent2);
+    expect(turnController.getPrimarySpeaker()).toEqual(agent2);
+    expect(turnController.getPrimarySpeaker()).toEqual(agent1);
+    expect(turnController.getPrimarySpeaker()).toEqual(agent3);
+    expect(turnController.getPrimarySpeaker()).toEqual(agent2);
   });
 });
