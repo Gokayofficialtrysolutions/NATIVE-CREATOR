@@ -1,33 +1,40 @@
 export class AudioManager {
   private synth: SpeechSynthesis;
   private voices: SpeechSynthesisVoice[];
+  private selectedAccent: string = 'en-GB';
+  private speechSpeed: number = 1;
 
   constructor() {
     this.synth = window.speechSynthesis;
     this.voices = [];
-    // The voices are not immediately available, we need to wait for the onvoiceschanged event
     this.synth.onvoiceschanged = () => {
       this.voices = this.synth.getVoices();
     };
   }
 
+  public setAccent(accent: string) {
+    this.selectedAccent = accent;
+  }
+
+  public setSpeed(speed: number) {
+    this.speechSpeed = speed;
+  }
+
   public speak(text: string) {
     if (this.synth.speaking) {
-      console.error('Speech synthesis is already in progress.');
-      return;
+      this.synth.cancel();
     }
 
     const utterance = new SpeechSynthesisUtterance(text);
+    const voice = this.voices.find(v => v.lang === this.selectedAccent);
 
-    // Find a British English voice
-    const britishVoice = this.voices.find(voice => voice.lang === 'en-GB');
-
-    if (britishVoice) {
-      utterance.voice = britishVoice;
+    if (voice) {
+      utterance.voice = voice;
     } else {
-      console.warn('British English voice not found, using default.');
+      console.warn(`Voice for accent ${this.selectedAccent} not found, using default.`);
     }
 
+    utterance.rate = this.speechSpeed;
     this.synth.speak(utterance);
   }
 }

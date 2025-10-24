@@ -4,11 +4,14 @@ import { AgentManager } from './core/AgentManager';
 import { AudioManager } from './core/AudioManager';
 import { MemoryManager } from './core/MemoryManager';
 import { AIManager } from './core/AIManager';
+import { TurnController } from './core/TurnController';
 import AgentCreator from './components/AgentCreator';
 import PersonalitySliders from './components/PersonalitySliders';
 import DominanceInput from './components/DominanceInput';
 import LiveTranscript from './components/LiveTranscript';
 import SpeakerIndicator from './components/SpeakerIndicator';
+import SpeechSpeedSlider from './components/SpeechSpeedSlider';
+import AccentSelector from './components/AccentSelector';
 
 function App() {
   const agentManager = useMemo(() => new AgentManager(), []);
@@ -20,6 +23,10 @@ function App() {
   const [conversation, setConversation] = useState<any[]>([]);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [speechSpeed, setSpeechSpeed] = useState(1);
+  const [selectedAccent, setSelectedAccent] = useState('en-GB');
+
+  const turnController = useMemo(() => new TurnController(agents), [agents]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -59,6 +66,8 @@ function App() {
   };
 
   const handleSpeak = (text: string) => {
+    audioManager.setSpeed(speechSpeed);
+    audioManager.setAccent(selectedAccent);
     audioManager.speak(text);
   };
 
@@ -70,7 +79,7 @@ function App() {
 
       // Agent response
       if (agents.length > 0) {
-        const respondingAgent = agents[Math.floor(Math.random() * agents.length)];
+        const respondingAgent = turnController.getNextSpeaker();
         const response = await aiManager.generateResponse(respondingAgent, updatedConversation);
         await memoryManager.saveMessage(respondingAgent.name, response);
         updatedConversation = await memoryManager.getConversation();
@@ -95,6 +104,16 @@ function App() {
       setSelectedAgent(updatedAgent);
       // This is a bit of a hack, but since we're using the agent name as a key,
       // adding the agent again will just overwrite the old one.
+      agentManager.addAgent(updatedAgent);
+      await memoryManager.saveAgent(updatedAgent);
+      setAgents([...agentManager.getAllAgents()]);
+    }
+  };
+
+  const handleDominanceChange = async (dominance: number) => {
+    if (selectedAgent) {
+      const updatedAgent = { ...selectedAgent, dominance };
+      setSelectedAgent(updatedAgent);
       agentManager.addAgent(updatedAgent);
       await memoryManager.saveAgent(updatedAgent);
       setAgents([...agentManager.getAllAgents()]);
@@ -131,7 +150,9 @@ function App() {
               </ul>
             </div>
             <PersonalitySliders selectedAgent={selectedAgent} onPersonalityChange={handlePersonalityChange} />
-            <DominanceInput />
+            <DominanceInput selectedAgent={selectedAgent} onDominanceChange={handleDominanceChange} />
+            <SpeechSpeedSlider speed={speechSpeed} onSpeedChange={setSpeechSpeed} />
+            <AccentSelector selectedAccent={selectedAccent} onAccentChange={setSelectedAccent} />
           </div>
 
           {/* Right Column: Conversation View */}

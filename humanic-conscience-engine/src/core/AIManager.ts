@@ -10,12 +10,7 @@ import { Agent } from '../interfaces/Agent';
 // For development, you can use an environment variable or a local configuration file.
 // For production, use a secure key management service.
 // ====================================================================================
-const API_KEY = 'YOUR_API_KEY_HERE'; // Replace with your actual API key for local development
-
-if (API_KEY === 'YOUR_API_KEY_HERE') {
-  alert('Please replace "YOUR_API_KEY_HERE" with your actual Gemini API key in AIManager.ts');
-}
-
+const API_KEY = 'AIzaSyBY1Q1KqiggeBpHeMWNOp3d8O_l0C7PLDI';
 
 export class AIManager {
   private genAI: GoogleGenerativeAI;
@@ -41,6 +36,7 @@ export class AIManager {
       ${conversationHistory.map((msg) => `${msg.speaker}: ${msg.text}`).join('\n')}
 
       Your task is to provide a response in character. Your response should be a single paragraph.
+      IMPORTANT: You must strictly adhere to British English spelling, grammar, and idioms. For example, use "colour" instead of "color", and "lift" instead of "elevator".
     `;
 
     try {
