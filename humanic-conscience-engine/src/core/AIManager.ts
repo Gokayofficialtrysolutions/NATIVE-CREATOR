@@ -10,12 +10,7 @@ import { Agent } from '../interfaces/Agent';
 // For development, you can use an environment variable or a local configuration file.
 // For production, use a secure key management service.
 // ====================================================================================
-const API_KEY = 'YOUR_API_KEY_HERE'; // Replace with your actual API key for local development
-
-if (API_KEY === 'YOUR_API_KEY_HERE') {
-  alert('Please replace "YOUR_API_KEY_HERE" with your actual Gemini API key in AIManager.ts');
-}
-
+const API_KEY = 'AIzaSyBY1Q1KqiggeBpHeMWNOp3d8O_l0C7PLDI';
 
 export class AIManager {
   private genAI: GoogleGenerativeAI;

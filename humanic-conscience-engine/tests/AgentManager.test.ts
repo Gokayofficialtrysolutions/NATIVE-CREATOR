@@ -8,6 +8,7 @@ describe('AgentManager', () => {
       name: 'Test Agent',
       role: 'Tester',
       dominance: 50,
+      mood: 'neutral',
       personality: {
         rudeness: 50,
         slang: 50,

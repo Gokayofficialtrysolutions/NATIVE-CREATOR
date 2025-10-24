@@ -5,6 +5,7 @@ import { AudioManager } from './core/AudioManager';
 import { MemoryManager } from './core/MemoryManager';
 import { AIManager } from './core/AIManager';
 import { TurnController } from './core/TurnController';
+import { MoodShiftSystem } from './core/MoodShiftSystem';
 import AgentCreator from './components/AgentCreator';
 import PersonalitySliders from './components/PersonalitySliders';
 import DominanceInput from './components/DominanceInput';
@@ -12,12 +13,14 @@ import LiveTranscript from './components/LiveTranscript';
 import SpeakerIndicator from './components/SpeakerIndicator';
 import SpeechSpeedSlider from './components/SpeechSpeedSlider';
 import AccentSelector from './components/AccentSelector';
+import EmotionIndicator from './components/EmotionIndicator';
 
 function App() {
   const agentManager = useMemo(() => new AgentManager(), []);
   const audioManager = useMemo(() => new AudioManager(), []);
   const memoryManager = useMemo(() => new MemoryManager(), []);
   const aiManager = useMemo(() => new AIManager(), []);
+  const moodShiftSystem = useMemo(() => new MoodShiftSystem(), []);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [conversation, setConversation] = useState<any[]>([]);
@@ -48,6 +51,7 @@ function App() {
       name,
       role,
       dominance: 50,
+      mood: 'neutral',
       personality: {
         rudeness: 50,
         slang: 50,
@@ -78,22 +82,39 @@ function App() {
       let updatedConversation = await memoryManager.getConversation();
 
       if (agents.length > 0) {
-        // Primary speaker's turn
         const primarySpeaker = turnController.getPrimarySpeaker();
         const primaryResponse = await aiManager.generateResponse(primarySpeaker, updatedConversation);
         await memoryManager.saveMessage(primarySpeaker.name, primaryResponse);
+
+        const newMood = moodShiftSystem.analyseAndShift(primarySpeaker, primaryResponse);
+        const updatedAgent = { ...primarySpeaker, mood: newMood };
+        agentManager.addAgent(updatedAgent);
+        await memoryManager.saveAgent(updatedAgent);
+        setAgents([...agentManager.getAllAgents()]);
+        if (selectedAgent?.name === updatedAgent.name) {
+          setSelectedAgent(updatedAgent);
+        }
+
         updatedConversation = await memoryManager.getConversation();
         handleSpeak(primaryResponse);
         setConversation(updatedConversation);
 
-        // Check for interruptions
         const interrupter = turnController.checkForInterruptions(primarySpeaker);
         if (interrupter) {
-          // A brief delay to simulate a natural interruption
           await new Promise(resolve => setTimeout(resolve, 1000));
 
           const interruptionResponse = await aiManager.generateResponse(interrupter, updatedConversation);
           await memoryManager.saveMessage(interrupter.name, `(Interrupts) ${interruptionResponse}`);
+
+          const interrupterNewMood = moodShiftSystem.analyseAndShift(interrupter, interruptionResponse);
+          const updatedInterrupter = { ...interrupter, mood: interrupterNewMood };
+          agentManager.addAgent(updatedInterrupter);
+          await memoryManager.saveAgent(updatedInterrupter);
+          setAgents([...agentManager.getAllAgents()]);
+          if (selectedAgent?.name === updatedInterrupter.name) {
+            setSelectedAgent(updatedInterrupter);
+          }
+
           updatedConversation = await memoryManager.getConversation();
           handleSpeak(interruptionResponse);
           setConversation(updatedConversation);
@@ -159,6 +180,7 @@ function App() {
                 ))}
               </ul>
             </div>
+            <EmotionIndicator selectedAgent={selectedAgent} />
             <PersonalitySliders selectedAgent={selectedAgent} onPersonalityChange={handlePersonalityChange} />
             <DominanceInput selectedAgent={selectedAgent} onDominanceChange={handleDominanceChange} />
             <SpeechSpeedSlider speed={speechSpeed} onSpeedChange={setSpeechSpeed} />
